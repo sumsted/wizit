@@ -17,7 +17,7 @@ import difflib
 import sys
 
 
-VALID_EXTENSIONS = ['.py', '.html', '.xml', '.java', '.properties']
+VALID_EXTENSIONS = ['.py', '.html', '.xml', '.java', '.properties', '.sql', '.jsf']
 
 HTML_PRE = """
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
@@ -71,17 +71,24 @@ def get_file_dict(path):
     for current_path, subdir_list, file_list in os.walk(path):
         for file_name in file_list:
             proper_name, extension = os.path.splitext(file_name)
-            if extension in VALID_EXTENSIONS:
+            if extension.lower() in VALID_EXTENSIONS:
                 relative_path = current_path[path_length:]
                 relative_file = relative_path + '/' + file_name
-                file_dict[relative_file] = True
+                full_file = current_path + '/' + file_name
+                line_count = sum(1 for line in open(full_file))
+                file_dict[relative_file] = {'common': True,
+                                            'extension': extension.lower(),
+                                            'line_count': line_count,
+                                            'lines_added': 0,
+                                            'lines_changed': 0,
+                                            'lines_removed': 0}
     return file_dict
 
 
 def find_missing_files(files1, files2):
     for k in files1.iterkeys():
         if k not in files2.keys():
-            files1[k] = False
+            files1[k]['common'] = False
 
 
 def main(base_path, delta_path, html_path):
@@ -94,7 +101,7 @@ def main(base_path, delta_path, html_path):
     heading = True
     found = False
     for k, v in base_dict.iteritems():
-        if not v:
+        if not v['common']:
             html += '<p>Files Removed</p><ul>' if heading else ''
             html += '<li>%s</li>' % k
             heading = False
@@ -103,22 +110,24 @@ def main(base_path, delta_path, html_path):
     heading = True
     found = False
     for k, v in delta_dict.iteritems():
-        if not v:
-            html += '<p>Files Added</p>' if heading else ''
+        if not v['common']:
+            html += '<p>Files Added</p><ul>' if heading else ''
             html += '<li>%s</li>' % k
             heading = False
             found = True
     html += '</ul>' if found else ''
     html += '<p>Left: %s</p><p>Right: %s</p>' % (base_path, delta_path)
     for k, v in base_dict.iteritems():
-        if v:
+        if v['common']:
             base_full_path = base_path + k
             delta_full_path = delta_path + k
             bf = open(base_full_path, 'r').readlines()
             df = open(delta_full_path, 'r').readlines()
             diff_found = False
-            for line in difflib.context_diff(bf, df, k, k):
+            for line in difflib.context_diff(bf, df, k, k, n=0):
                 diff_found = True
+                # todo calculate lines added, removed, changed
+                
                 break
             if diff_found:
                 html += difflib.HtmlDiff(wrapcolumn=60).make_table(bf, df, k, k, context=True)
