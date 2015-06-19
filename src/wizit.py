@@ -109,7 +109,6 @@ def main(base_path, delta_path, html_path):
     delta_dict = get_file_dict(delta_path)
     
     # mark files that are not common between the two dicts
-    missing_content = '<p>Files Removed</p><ul>'
     summary['removed'],content = find_missing_files(base_dict, delta_dict)
     missing_content = '<p>Files Removed</p><ul>%s</ul>' % content 
     summary['added'],content = find_missing_files(delta_dict, base_dict)
